@@ -123,8 +123,17 @@ def scan_for_local_leads(file_path):
                 
                 if not domain or domain.startswith('#') or domain.startswith('domain'):
                     continue
-                    
-                if any(keyword in domain for keyword in target_keywords):
+                is_match = False
+                for keyword in target_keywords:
+                    if keyword.startswith('.'):
+                        if domain.endswith(keyword):
+                            is_match = True
+                            break
+                    else:
+                        if keyword in domain:
+                            is_match = True
+                            break
+                if is_match:
                     found_leads.append(domain)
     except Exception as e:
         print(f"Error scanning file: {e}")

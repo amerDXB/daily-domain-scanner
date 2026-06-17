@@ -217,7 +217,8 @@ function scanTextData(text) {
             // Keyword Match Check
             for (let j = 0; j < keywords.length; j++) {
                 const kw = keywords[j];
-                if (domain.includes(kw)) {
+                const isMatch = kw.startsWith('.') ? domain.endsWith(kw) : domain.includes(kw);
+                if (isMatch) {
                     foundLeads.push({
                         id: foundLeads.length + 1,
                         domain: domain,
