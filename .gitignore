@@ -1,0 +1,8 @@
+# Ignore raw daily domain files and local downloads
+downloads/
+
+# Ignore exported leads results
+leads_found.txt
+
+# Ignore OS files
+.DS_Store

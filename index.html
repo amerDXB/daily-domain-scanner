@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Domain Scanner - Local Leads Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- JSZip Library for client-side unzipping -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="gradient-bg"></div>
+    
+    <main class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.905 0-5.62-.73-8.014-2.018m16.028 0c.34-.997.514-2.052.514-3.132 0-3.32-1.96-6.19-4.817-7.482M12 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1>Daily Domain Scanner</h1>
+                    <p class="subtitle">Extract local leads from newly registered domains instantly in your browser</p>
+                </div>
+            </div>
+            <div class="instructions-trigger">
+                <a href="https://whoisds.com/newly-registered-domains" target="_blank" rel="noopener" class="btn btn-secondary">
+                    Get Today's ZIP
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="icon">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="app-grid">
+            <!-- Left Panel: Upload and Keywords -->
+            <section class="left-panel">
+                <!-- Drop Zone -->
+                <div class="card drop-zone-card">
+                    <div id="drop-zone" class="drop-zone">
+                        <input type="file" id="file-input" accept=".zip" class="file-input">
+                        <div class="drop-zone-content">
+                            <div class="upload-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v12m0 0l-3-3m3 3l3-3m2-8.5a5 5 0 11-7.5 7.785M12 2a9 9 0 100 18 9 9 0 000-18z" />
+                                </svg>
+                            </div>
+                            <h3>Drag & Drop Daily ZIP</h3>
+                            <p>or click to browse your computer</p>
+                            <span class="file-specs">Accepts newly_registered_domains.zip</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keyword Manager -->
+                <div class="card keyword-card">
+                    <div class="card-header">
+                        <h2>Target Keywords</h2>
+                        <span id="keyword-count" class="badge">0 active</span>
+                    </div>
+                    <p class="card-desc">Domains matching any of these keywords will be captured as leads.</p>
+                    
+                    <div class="keyword-input-wrapper">
+                        <input type="text" id="keyword-input" placeholder="Add custom keyword (e.g. vancouver)" autocomplete="off">
+                        <button id="add-keyword-btn" class="btn btn-primary">Add</button>
+                    </div>
+                    
+                    <div id="keywords-list" class="keywords-list">
+                        <!-- Keywords chips added via JS -->
+                    </div>
+                    
+                    <div class="keyword-actions">
+                        <button id="reset-keywords" class="btn-text">Reset to default</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Processing, Stats, and Results -->
+            <section class="right-panel">
+                <!-- Progress & Stats Grid -->
+                <div class="stats-grid">
+                    <div class="card stat-card">
+                        <span class="stat-label">Active Keywords</span>
+                        <span id="stat-keywords" class="stat-val">--</span>
+                    </div>
+                    <div class="card stat-card">
+                        <span class="stat-label">Domains Scanned</span>
+                        <span id="stat-scanned" class="stat-val">--</span>
+                    </div>
+                    <div class="card stat-card highlight">
+                        <span class="stat-label">Leads Found</span>
+                        <span id="stat-leads" class="stat-val">--</span>
+                    </div>
+                </div>
+
+                <!-- Processing Screen -->
+                <div id="processing-card" class="card processing-card hidden">
+                    <div class="processing-content">
+                        <div class="spinner-wrapper">
+                            <div class="spinner"></div>
+                            <span id="progress-percent" class="percent">0%</span>
+                        </div>
+                        <div class="progress-details">
+                            <h3 id="progress-status">Reading ZIP file...</h3>
+                            <div class="progress-bar-container">
+                                <div id="progress-bar" class="progress-bar"></div>
+                            </div>
+                            <p id="progress-stats">Processed 0 of 0 lines</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Card -->
+                <div class="card results-card">
+                    <div class="results-header">
+                        <div class="results-title-group">
+                            <h2>Scan Results</h2>
+                            <p id="results-meta" class="results-meta">No domains scanned yet.</p>
+                        </div>
+                        <div class="export-actions">
+                            <button id="export-csv" class="btn btn-secondary hidden" disabled>
+                                Export CSV
+                            </button>
+                            <button id="export-txt" class="btn btn-primary hidden" disabled>
+                                Export TXT
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search Filter -->
+                    <div id="search-wrapper" class="search-wrapper hidden">
+                        <input type="text" id="search-input" placeholder="Filter found leads...">
+                    </div>
+
+                    <!-- Table container -->
+                    <div class="table-container">
+                        <table id="results-table" class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Domain Name</th>
+                                    <th>Matched Keyword</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body">
+                                <tr>
+                                    <td colspan="4" class="empty-state">
+                                        <div class="empty-state-content">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <p>Drop a ZIP file to start extracting leads.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <p>100% Client-Side. No domain data is sent to any server. Your data remains secure on your computer.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
