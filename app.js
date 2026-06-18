@@ -217,6 +217,19 @@ function setupEventListeners() {
             closeDrawer();
         }
     });
+
+    // Toggle Keywords manager UI based on selected scan filter mode
+    const scanModeSelect = document.getElementById('scan-mode-select');
+    const keywordContainer = document.getElementById('keyword-manager-container');
+    if (scanModeSelect && keywordContainer) {
+        scanModeSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'keywords') {
+                keywordContainer.style.display = 'block';
+            } else {
+                keywordContainer.style.display = 'none';
+            }
+        });
+    }
 }
 
 // Handle ZIP Upload & Extraction
@@ -281,37 +294,65 @@ function scanTextData(text) {
                 continue;
             }
 
-            // Keyword Match Check
-            for (let j = 0; j < keywords.length; j++) {
-                const kw = keywords[j];
-                const isMatch = kw.startsWith('.') ? domain.endsWith(kw) : domain.includes(kw);
-                if (isMatch) {
-                    foundLeads.push({
-                        id: foundLeads.length + 1,
-                        domain: domain,
-                        match: kw
-                    });
-                    
-                    // Initialize CRM entity if it doesn't exist
-                    if (!crmDatabase[domain]) {
-                        crmDatabase[domain] = {
-                            status: 'New',
-                            score: null,
-                            notes: '',
-                            email: '',
-                            contactPage: '',
-                            socials: {
-                                facebook: '',
-                                instagram: '',
-                                linkedin: '',
-                                twitter: ''
-                            },
-                            whyMatched: `Keyword: ${kw}`,
-                            country: null,
-                            auditResult: null
-                        };
+            // Determine if domain matches current Scan Filter Mode
+            const scanMode = document.getElementById('scan-mode-select').value;
+            let isMatch = false;
+            let matchReason = '';
+
+            if (scanMode === 'all') {
+                isMatch = true;
+                matchReason = 'Unfiltered scan';
+            } else if (scanMode === 'country_ca') {
+                // Check .ca or Canadian keyword heuristics
+                const canadianKeywords = ['ca', 'canada', 'canadian', 'quebec', 'ontario', 'vancouver', 'toronto', 'montreal', 'calgary', 'ottawa', 'alberta', 'bc', 'squamish', 'whistler'];
+                const hasCaKeyword = canadianKeywords.some(kw => domain.includes(kw));
+                if (domain.endsWith('.ca') || hasCaKeyword) {
+                    isMatch = true;
+                    matchReason = domain.endsWith('.ca') ? 'Canadian TLD (.ca)' : 'Canadian keyword match';
+                }
+            } else if (scanMode === 'country_us') {
+                if (domain.endsWith('.us') || domain.endsWith('.gov') || domain.endsWith('.mil')) {
+                    isMatch = true;
+                    matchReason = `US Extension (${domain.slice(domain.lastIndexOf('.'))})`;
+                }
+            } else {
+                // Match custom target keywords
+                for (let j = 0; j < keywords.length; j++) {
+                    const kw = keywords[j];
+                    const matchesKw = kw.startsWith('.') ? domain.endsWith(kw) : domain.includes(kw);
+                    if (matchesKw) {
+                        isMatch = true;
+                        matchReason = `Keyword: ${kw}`;
+                        break;
                     }
-                    break; 
+                }
+            }
+
+            if (isMatch) {
+                foundLeads.push({
+                    id: foundLeads.length + 1,
+                    domain: domain,
+                    match: matchReason
+                });
+                
+                // Initialize CRM entity if it doesn't exist
+                if (!crmDatabase[domain]) {
+                    crmDatabase[domain] = {
+                        status: 'New',
+                        score: null,
+                        notes: '',
+                        email: '',
+                        contactPage: '',
+                        socials: {
+                            facebook: '',
+                            instagram: '',
+                            linkedin: '',
+                            twitter: ''
+                        },
+                        whyMatched: matchReason,
+                        country: scanMode === 'country_ca' ? 'Canada 🇨🇦' : (scanMode === 'country_us' ? 'United States 🇺🇸' : null),
+                        auditResult: null
+                    };
                 }
             }
         }

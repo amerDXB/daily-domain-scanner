@@ -60,8 +60,26 @@
                     </div>
                 </div>
 
+                <!-- Scan Target Mode / Country Filter Card -->
+                <div class="card scan-mode-card" style="margin-bottom: 1.75rem;">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h2 style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 600;">Scan Filter Mode</h2>
+                    </div>
+                    <p class="card-desc">Choose whether to filter the uploaded ZIP list by custom keywords or extract all domains belonging to a specific country.</p>
+                    
+                    <div class="input-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <label for="scan-mode-select" style="font-size: 0.75rem; color: var(--text-secondary);">Filter Mode</label>
+                        <select id="scan-mode-select" class="status-select" style="width: 100%;">
+                            <option value="keywords">Match Target Keywords</option>
+                            <option value="country_ca">All Canadian Domains (.ca / keywords)</option>
+                            <option value="country_us">All United States Domains (.us / .gov / .mil)</option>
+                            <option value="all">No Filter (Extract All Domains)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Keyword Manager -->
-                <div class="card keyword-card">
+                <div id="keyword-manager-container" class="card keyword-card">
                     <div class="card-header">
                         <h2>Target Keywords</h2>
                         <span id="keyword-count" class="badge">0 active</span>
