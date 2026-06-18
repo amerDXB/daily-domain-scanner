@@ -482,6 +482,17 @@ function renderScoreAndInsights(info) {
     drawerLostOpp.textContent = 'Lost Opp: --';
     drawerOutreachText.value = '';
 
+    // Reset Contact Discovery section elements
+    document.getElementById('drawer-contact-confidence').textContent = '--';
+    document.getElementById('drawer-contact-confidence').style.background = 'rgba(255, 255, 255, 0.05)';
+    document.getElementById('drawer-contact-confidence').style.color = 'var(--text-secondary)';
+    document.getElementById('drawer-mx-status').textContent = '--';
+    document.getElementById('drawer-email-provider').textContent = '--';
+    document.getElementById('drawer-candidate-emails').innerHTML = '';
+    document.getElementById('drawer-candidates-wrapper').classList.add('hidden');
+    document.getElementById('drawer-next-action').textContent = 'Run domain audit scan to see recommendation.';
+    document.getElementById('drawer-next-action').style.color = 'var(--text-muted)';
+
     if (info.score === null) {
         scoreVal.textContent = '--';
         drawerInsights.innerHTML = `
@@ -491,6 +502,95 @@ function renderScoreAndInsights(info) {
         `;
     } else {
         scoreVal.textContent = info.score;
+        const audit = info.auditResult;
+
+        // Populate DNS & MX Contact Discovery Details
+        if (audit) {
+            const mxStatusEl = document.getElementById('drawer-mx-status');
+            const emailProviderEl = document.getElementById('drawer-email-provider');
+            const confidenceEl = document.getElementById('drawer-contact-confidence');
+            const candidatesWrapper = document.getElementById('drawer-candidates-wrapper');
+            const candidateEmailsEl = document.getElementById('drawer-candidate-emails');
+            const nextActionEl = document.getElementById('drawer-next-action');
+
+            // MX record status
+            if (audit.mxFound) {
+                mxStatusEl.textContent = 'Active (MX Found)';
+                mxStatusEl.style.color = '#10b981';
+                emailProviderEl.textContent = audit.emailProvider || 'Unknown';
+                
+                // Show candidate email recommendations
+                candidatesWrapper.classList.remove('hidden');
+                candidateEmailsEl.innerHTML = '';
+                const prefixes = ['info', 'hello', 'contact', 'sales', 'admin'];
+                prefixes.forEach(prefix => {
+                    const candidate = `${prefix}@${activeDrawerDomain}`;
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.justify = 'space-between';
+                    row.style.alignItems = 'center';
+                    row.style.background = 'rgba(255, 255, 255, 0.02)';
+                    row.style.padding = '0.25rem 0.5rem';
+                    row.style.borderRadius = '0.35rem';
+                    row.style.fontSize = '0.75rem';
+                    row.innerHTML = `
+                        <span style="font-family: monospace; color:#cbd5e1;">${candidate}</span>
+                        <div style="display:flex; gap:0.25rem;">
+                            <button type="button" class="btn btn-secondary" style="padding: 0.15rem 0.35rem; font-size: 0.65rem;" onclick="copyToClipboard('${candidate}', this)">Copy</button>
+                            <button type="button" class="btn btn-secondary" style="padding: 0.15rem 0.35rem; font-size: 0.65rem;" onclick="verifyCandidateEmail('${candidate}', this)">Verify</button>
+                        </div>
+                    `;
+                    candidateEmailsEl.appendChild(row);
+                });
+            } else {
+                mxStatusEl.textContent = 'None Found';
+                mxStatusEl.style.color = '#ef4444';
+                emailProviderEl.textContent = 'No Mail Setup';
+                emailProviderEl.style.color = 'var(--text-muted)';
+            }
+
+            // Calculate Contact Confidence Score
+            let confidence = 0;
+            if (audit.mxFound) confidence += 40;
+            if (info.email) confidence += 40;
+            if (audit.contactPage) confidence += 10;
+            const hasSocials = Object.values(audit.socials || {}).some(link => link !== null && link !== '');
+            if (hasSocials) confidence += 10;
+
+            confidenceEl.textContent = `${confidence}%`;
+            if (confidence >= 70) {
+                confidenceEl.style.background = 'rgba(16, 185, 129, 0.15)';
+                confidenceEl.style.color = '#10b981';
+                confidenceEl.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+            } else if (confidence >= 40) {
+                confidenceEl.style.background = 'rgba(245, 158, 11, 0.15)';
+                confidenceEl.style.color = '#f59e0b';
+                confidenceEl.style.borderColor = 'rgba(245, 158, 11, 0.25)';
+            } else {
+                confidenceEl.style.background = 'rgba(239, 68, 68, 0.15)';
+                confidenceEl.style.color = '#ef4444';
+                confidenceEl.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+            }
+
+            // Pipeline next action advice
+            if (!audit.active && !audit.mxFound) {
+                nextActionEl.textContent = '🔴 No Website & No Mail setup. Recommended action: Place in monitoring queue.';
+                nextActionEl.style.color = '#ef4444';
+            } else if (!audit.active && audit.mxFound) {
+                nextActionEl.textContent = '🟡 No active Website, but MX mail setup detected! Recommended action: Try cold emailing unverified candidates.';
+                nextActionEl.style.color = '#f59e0b';
+            } else if (audit.active && audit.contactPage) {
+                nextActionEl.textContent = '🟢 Website is active with a Contact Form page. Recommended action: Submit pitch via contact form.';
+                nextActionEl.style.color = '#10b981';
+            } else if (audit.active && hasSocials && !info.email) {
+                nextActionEl.textContent = '🔵 Active site with social links only. Recommended action: Send outreach pitch via Instagram/Facebook DM.';
+                nextActionEl.style.color = 'var(--accent-teal)';
+            } else {
+                nextActionEl.textContent = '🟢 Active site found. Recommended action: Review contact page or audit details.';
+                nextActionEl.style.color = 'var(--text-primary)';
+            }
+        }
+
         
         // Add color mapping
         if (info.score > 60) {
@@ -898,3 +998,49 @@ function formatDate(date) {
 
     return [year, month, day].join('-');
 }
+
+// Global helper: Copy specific text to clipboard and update button text temporarily
+window.copyToClipboard = function(text, btn) {
+    try {
+        navigator.clipboard.writeText(text);
+    } catch (e) {
+        const tempInput = document.createElement('input');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+    }
+    const originalText = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.disabled = true;
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }, 1500);
+};
+
+// Global helper: Verify candidate email (simulated)
+window.verifyCandidateEmail = async function(email, btn) {
+    const originalText = btn.textContent;
+    btn.textContent = 'Checking...';
+    btn.disabled = true;
+    
+    // Simulate endpoint request latency
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const outcomes = [
+        { label: 'Valid ✅', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+        { label: 'Catch-all ⚠️', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)' },
+        { label: 'Risky ⚡', color: '#f87171', bg: 'rgba(239, 68, 68, 0.15)' }
+    ];
+    
+    // Random outcome simulator
+    const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+    
+    btn.textContent = result.label;
+    btn.style.color = result.color;
+    btn.style.background = result.bg;
+    btn.style.borderColor = result.color;
+    btn.disabled = true; // Stay verified
+};

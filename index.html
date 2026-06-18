@@ -233,6 +233,60 @@
                     </div>
                 </div>
 
+                <!-- Contact Discovery Section -->
+                <div class="drawer-section">
+                    <h3>Contact Discovery</h3>
+                    <div class="contact-discovery-card" style="background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 0.75rem; display: flex; flex-direction: column; gap: 0.85rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Contact Confidence</span>
+                            <span id="drawer-contact-confidence" class="badge" style="background: rgba(139, 92, 246, 0.12); color: var(--accent-purple); border-color: rgba(139, 92, 246, 0.2);">--</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.75rem;">
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">MX Records</div>
+                                <div id="drawer-mx-status" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-top: 0.15rem;">--</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Email Provider</div>
+                                <div id="drawer-email-provider" style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-top: 0.15rem;">--</div>
+                            </div>
+                        </div>
+
+                        <div id="drawer-candidates-wrapper" class="hidden" style="border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.75rem;">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">Likely Candidates (Unverified)</div>
+                            <div id="drawer-candidate-emails" style="display: flex; flex-direction: column; gap: 0.35rem;">
+                                <!-- Likely candidate emails go here -->
+                            </div>
+                        </div>
+
+                        <div style="border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.75rem;">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">Social Search Shortcuts</div>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                                <button type="button" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.7rem;" onclick="window.open('https://www.google.com/search?q=' + encodeURIComponent(activeDrawerDomain + ' facebook OR instagram OR linkedin'), '_blank')">
+                                    🔍 Google Search
+                                </button>
+                                <button type="button" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.7rem;" onclick="window.open('https://www.facebook.com/search/top/?q=' + encodeURIComponent(activeDrawerDomain.split('.')[0]), '_blank')">
+                                    📘 Facebook Find
+                                </button>
+                                <button type="button" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.7rem;" onclick="window.open('https://www.instagram.com/explore/tags/' + encodeURIComponent(activeDrawerDomain.split('.')[0]), '_blank')">
+                                    📸 Instagram Find
+                                </button>
+                                <button type="button" class="btn btn-secondary" style="padding: 0.35rem 0.5rem; font-size: 0.7rem;" onclick="window.open('https://www.linkedin.com/search/results/all/?keywords=' + encodeURIComponent(activeDrawerDomain), '_blank')">
+                                    💼 LinkedIn Find
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.75rem;">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Recommended Next Action</div>
+                            <div id="drawer-next-action" style="font-size: 0.8rem; color: var(--accent-teal); font-weight: 600; margin-top: 0.25rem; line-height: 1.4;">
+                                Run domain audit scan to see recommendation.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Contacts Section -->
                 <div class="drawer-section">
                     <h3>Captured Contacts & Profiles</h3>

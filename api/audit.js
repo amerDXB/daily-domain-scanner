@@ -1,6 +1,7 @@
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+const dns = require('dns').promises;
 
 // Helper to perform requests with a timeout
 function fetchUrl(urlStr, timeoutMs = 5000) {
@@ -106,10 +107,44 @@ module.exports = async (req, res) => {
         hasCta: false,
         country: null,
         preLaunch: false,
+        mxFound: false,
+        emailProvider: 'Unknown',
         errorMessage: null
     };
 
     try {
+        // 0. Perform DNS MX Check & Provider detection
+        try {
+            const mxRecords = await dns.resolveMx(targetDomain);
+            if (mxRecords && mxRecords.length > 0) {
+                result.mxFound = true;
+                
+                // Sort by priority to check the primary MX record first
+                mxRecords.sort((a, b) => a.priority - b.priority);
+                const primaryExchange = mxRecords[0].exchange.toLowerCase();
+                
+                if (primaryExchange.includes('google.com') || primaryExchange.includes('googlemail.com') || primaryExchange.includes('aspmx.l.google.com')) {
+                    result.emailProvider = 'Google Workspace';
+                } else if (primaryExchange.includes('outlook.com') || primaryExchange.includes('mail.protection.outlook.com')) {
+                    result.emailProvider = 'Microsoft 365';
+                } else if (primaryExchange.includes('zoho.com') || primaryExchange.includes('zoho.eu')) {
+                    result.emailProvider = 'Zoho';
+                } else if (primaryExchange.includes('shopify.com')) {
+                    result.emailProvider = 'Shopify Email';
+                } else if (primaryExchange.includes('secureserver.net') || primaryExchange.includes('godaddy.com')) {
+                    result.emailProvider = 'GoDaddy';
+                } else if (primaryExchange.includes('mx.cloudflare.net')) {
+                    result.emailProvider = 'Cloudflare Email Routing';
+                } else {
+                    result.emailProvider = 'Other / Custom';
+                }
+            }
+        } catch (dnsErr) {
+            // MX lookup failed, means no MX records found or DNS error
+            result.mxFound = false;
+            result.emailProvider = 'None';
+        }
+
         let responseData = null;
         let usedHttps = true;
 
