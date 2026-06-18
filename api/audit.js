@@ -112,6 +112,12 @@ module.exports = async (req, res) => {
         spfPresent: false,
         dkimPresent: false,
         dmarcPresent: false,
+        isB2b: false,
+        isCloudflare: false,
+        hasLeadCapture: false,
+        hasInventory: false,
+        isActiveBusiness: false,
+        hasSeo: false,
         errorMessage: null
     };
 
@@ -341,6 +347,14 @@ module.exports = async (req, res) => {
         }
         
         result.country = detectedCountry || 'Unknown 🌐';
+
+        // 6.5 Detect Buyer Intent, Accessibilities, and Negative Factors
+        result.isB2b = ['wholesale', 'manufacturing', 'logistics', 'industrial', 'supplier', 'distributor'].some(term => htmlLower.includes(term));
+        result.isCloudflare = htmlLower.includes('cloudflare') || htmlLower.includes('/cdn-cgi/');
+        result.hasLeadCapture = htmlLower.includes('type="email"') || htmlLower.includes('newsletter') || htmlLower.includes('subscribe');
+        result.hasInventory = ['add to cart', 'add-to-cart', 'checkout', 'cart', 'buy now', 'shop now'].some(term => htmlLower.includes(term));
+        result.isActiveBusiness = ['copyright', 'all rights reserved', '&copy;'].some(term => htmlLower.includes(term));
+        result.hasSeo = htmlLower.includes('meta name="description"') || htmlLower.includes('meta name="keywords"');
 
         // 7. Detect Pre-launch / Placeholder / Under Construction state
         const preLaunchIndicators = [

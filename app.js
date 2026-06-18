@@ -417,7 +417,7 @@ function renderResultsTable(filter = '') {
     if (filtered.length === 0) {
         resultsBody.innerHTML = `
             <tr>
-                <td colspan="6" class="empty-state">
+                <td colspan="7" class="empty-state">
                     <div class="empty-state-content">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -442,10 +442,28 @@ function renderResultsTable(filter = '') {
             scoreBadge = `<span class="score-badge ${scoreClass}">${rawScore}/100</span>`;
         }
 
+        // Determine Web Status badge
+        let webStatusBadge = `<span class="badge-status badge-status-new" style="font-size:0.75rem;">Unaudited</span>`;
+        if (crmInfo.auditResult) {
+            const audit = crmInfo.auditResult;
+            if (!audit.active) {
+                webStatusBadge = `<span class="badge-status badge-status-closed" style="font-size:0.75rem; background:rgba(239,68,68,0.15); color:#ef4444; border-color:rgba(239,68,68,0.25);">🔴 No Website</span>`;
+            } else if (audit.isCloudflare) {
+                webStatusBadge = `<span class="badge-status" style="font-size:0.75rem; background:rgba(139,92,246,0.15); color:var(--accent-purple); border-color:rgba(139,92,246,0.25);">🛡 Protected</span>`;
+            } else if (audit.preLaunch) {
+                webStatusBadge = `<span class="badge-status badge-status-followed_up" style="font-size:0.75rem;">🟠 Under Construction</span>`;
+            } else if (audit.statusCode >= 300 && audit.statusCode < 400) {
+                webStatusBadge = `<span class="badge-status" style="font-size:0.75rem; background:rgba(245,158,11,0.15); color:#f59e0b; border-color:rgba(245,158,11,0.25);">🟡 Redirect</span>`;
+            } else {
+                webStatusBadge = `<span class="badge-status badge-status-interested" style="font-size:0.75rem;">🟢 Active</span>`;
+            }
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
             <td class="domain-cell">${escapeHTML(domain)}</td>
+            <td>${webStatusBadge}</td>
             <td><span class="keyword-badge" style="font-size:0.75rem;">${escapeHTML(crmInfo.whyMatched || 'Keyword: ' + lead.match)}</span></td>
             <td>${scoreBadge}</td>
             <td>
@@ -833,63 +851,78 @@ function calculateOpportunityScore(audit) {
     const breakdown = [];
     
     if (!audit.active) {
-        // Domain is registered but website does not respond or exist
         return {
             total: 80,
             breakdown: [
-                { value: 10, label: 'Default base for new domains' },
-                { value: 70, label: 'Website does not exist / inactive' }
+                { value: 80, label: 'Website does not exist / inactive' }
             ]
         };
     }
 
-    // Default base score for new domains
-    score += 10;
-    breakdown.push({ value: 10, label: 'Default base for new domains' });
-
-    // Pre-launch/placeholder detection (High-signal opportunity)
+    // Positive Factor: Coming Soon / Pre-launch (+25)
     if (audit.preLaunch) {
         score += 25;
-        breakdown.push({ value: 25, label: 'Pre-launch/placeholder detected' });
+        breakdown.push({ value: 25, label: 'Coming soon / pre-launch' });
     }
 
-    // SSL Missing check
+    // Positive Factor: SSL HTTP Only (+20)
     if (!audit.https) {
-        score += 15;
-        breakdown.push({ value: 15, label: 'SSL certificate missing' });
-    }
-    
-    // Conditional Builder scoring: Only add score (+10) if the CMS site has performance or conversion issues
-    if (['Wix', 'Squarespace', 'Weebly'].includes(audit.cms)) {
-        if ((audit.responseTime && audit.responseTime > 1500) || !audit.hasCta) {
-            score += 10;
-            breakdown.push({ value: 10, label: `CMS (${audit.cms}) has issues` });
-        }
-    }
-    
-    // Speed checks
-    if (audit.responseTime && audit.responseTime > 1500) {
-        score += 15;
-        breakdown.push({ value: 15, label: 'Slow loading speed (>1.5s)' });
-    }
-    
-    // Missing social channels
-    const hasSocials = Object.values(audit.socials).some(link => link !== null && link !== '');
-    if (!hasSocials) {
-        score += 5;
-        breakdown.push({ value: 5, label: 'No social profiles connected' });
-    }
-    
-    // Call-To-Action (CTA) check
-    if (!audit.hasCta) {
-        score += 15;
-        breakdown.push({ value: 15, label: 'No clear Call-To-Action (CTA)' });
+        score += 20;
+        breakdown.push({ value: 20, label: 'HTTP only (No HTTPS)' });
     }
 
-    // Contact info presence
+    // Positive Factor: Broken / Missing Contact details (+15)
     if (audit.emails.length === 0 && !audit.contactPage) {
         score += 15;
-        breakdown.push({ value: 15, label: 'No contact path (email/page)' });
+        breakdown.push({ value: 15, label: 'Broken/missing contact path' });
+    }
+
+    // Positive Factor: Old CMS platforms like Wix/Squarespace (+10)
+    if (['Wix', 'Squarespace', 'Weebly'].includes(audit.cms)) {
+        score += 10;
+        breakdown.push({ value: 10, label: `CMS platform: ${audit.cms}` });
+    }
+
+    // Positive Factor: No mobile / slow loading speed (+10)
+    if (audit.responseTime && audit.responseTime > 1500) {
+        score += 10;
+        breakdown.push({ value: 10, label: 'Slow load speed (poor mobile performance)' });
+    }
+
+    // Negative Factor: Existing Active Business (-30)
+    if (audit.isActiveBusiness) {
+        score -= 30;
+        breakdown.push({ value: -30, label: 'Active business copyright detected' });
+    }
+
+    // Negative Factor: B2B Industrial Site (-20)
+    if (audit.isB2b) {
+        score -= 20;
+        breakdown.push({ value: -20, label: 'B2B/Industrial company profile' });
+    }
+
+    // Negative Factor: Cloudflare Protected (-20)
+    if (audit.isCloudflare) {
+        score -= 20;
+        breakdown.push({ value: -20, label: 'Cloudflare firewall protection' });
+    }
+
+    // Negative Factor: Existing Lead Capture form (-20)
+    if (audit.hasLeadCapture) {
+        score -= 20;
+        breakdown.push({ value: -20, label: 'Active newsletter/lead capture present' });
+    }
+
+    // Negative Factor: Existing Inventory / Shop Catalog (-15)
+    if (audit.hasInventory) {
+        score -= 15;
+        breakdown.push({ value: -15, label: 'E-commerce cart/checkout catalog' });
+    }
+
+    // Negative Factor: Existing SEO Footprint (-10)
+    if (audit.hasSeo) {
+        score -= 10;
+        breakdown.push({ value: -10, label: 'Structured SEO keywords meta detected' });
     }
 
     return {
