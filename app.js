@@ -38,6 +38,7 @@ const closeDrawerBtn = document.getElementById('close-drawer-btn');
 const saveDrawerBtn = document.getElementById('save-drawer-btn');
 const drawerDomain = document.getElementById('drawer-domain');
 const drawerMatchBadge = document.getElementById('drawer-match-badge');
+const drawerCountryBadge = document.getElementById('drawer-country-badge');
 const drawerScoreVal = document.getElementById('drawer-score-val');
 const drawerStatusSelect = document.getElementById('drawer-status-select');
 const drawerAuditBtn = document.getElementById('drawer-audit-btn');
@@ -287,6 +288,7 @@ function scanTextData(text) {
                                 twitter: ''
                             },
                             whyMatched: `Keyword: ${kw}`,
+                            country: null,
                             auditResult: null
                         };
                     }
@@ -425,6 +427,7 @@ window.openDetailsDrawer = function(domain, matchKeyword) {
     
     drawerDomain.textContent = domain;
     drawerMatchBadge.textContent = info.whyMatched || `Matched: ${matchKeyword}`;
+    drawerCountryBadge.textContent = info.country ? `Country: ${info.country}` : 'Country: Unaudited';
     drawerStatusSelect.value = info.status || 'New';
     
     // Load note & inputs
@@ -660,6 +663,8 @@ async function runAuditOnActiveDomain() {
         const info = crmDatabase[activeDrawerDomain];
         info.score = opportunityScore;
         info.auditResult = auditData;
+        info.country = auditData.country || 'Unknown 🌐';
+        drawerCountryBadge.textContent = `Country: ${info.country}`;
         
         // Autofill crawled details if available
         if (auditData.active) {
@@ -723,22 +728,23 @@ function saveDrawerData() {
     closeDrawer();
 }
 
-// Upgraded Export logic to include score, CRM pipeline status, and scraped emails
+// Upgraded Export logic to include score, CRM pipeline status, country, and scraped emails
 function exportCSV() {
     if (foundLeads.length === 0) return;
     
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Domain,Why Matched,Opportunity Score,Pipeline Status,Email,Contact Page,Notes\r\n";
+    csvContent += "Domain,Why Matched,Opportunity Score,Country,Pipeline Status,Email,Contact Page,Notes\r\n";
     
     foundLeads.forEach(lead => {
-        const crmInfo = crmDatabase[lead.domain] || { status: 'New', score: '', notes: '', email: '', contactPage: '', whyMatched: `Keyword: ${lead.match}` };
+        const crmInfo = crmDatabase[lead.domain] || { status: 'New', score: '', notes: '', email: '', contactPage: '', country: '', whyMatched: `Keyword: ${lead.match}` };
         
         // Sanitize values for CSV (escaping quotes, wrapping in quotes if containing commas)
         const whyMatchedClean = crmInfo.whyMatched ? crmInfo.whyMatched.replace(/"/g, '""') : `Keyword: ${lead.match}`;
         const notesClean = crmInfo.notes ? crmInfo.notes.replace(/"/g, '""').replace(/\r?\n/g, ' ') : '';
         const scoreClean = crmInfo.score !== null ? `${crmInfo.score}/100` : 'Unaudited';
+        const countryClean = crmInfo.country || 'Unaudited';
         
-        csvContent += `"${lead.domain}","${whyMatchedClean}","${scoreClean}","${crmInfo.status}","${crmInfo.email}","${crmInfo.contactPage}","${notesClean}"\r\n`;
+        csvContent += `"${lead.domain}","${whyMatchedClean}","${scoreClean}","${countryClean}","${crmInfo.status}","${crmInfo.email}","${crmInfo.contactPage}","${notesClean}"\r\n`;
     });
     
     const encodedUri = encodeURI(csvContent);
@@ -755,11 +761,12 @@ function exportTXT() {
     
     let txtContent = "# Daily Domain Leads Export\r\n\r\n";
     foundLeads.forEach(lead => {
-        const crmInfo = crmDatabase[lead.domain] || { status: 'New', score: '', email: '', contactPage: '' };
+        const crmInfo = crmDatabase[lead.domain] || { status: 'New', score: '', email: '', contactPage: '', country: '' };
         const scoreClean = crmInfo.score !== null ? `${crmInfo.score}/100` : 'Unaudited';
         
         txtContent += `Domain: ${lead.domain}\r\n`;
         txtContent += `Score: ${scoreClean}\r\n`;
+        txtContent += `Country: ${crmInfo.country || 'Unaudited'}\r\n`;
         txtContent += `Status: ${crmInfo.status}\r\n`;
         if (crmInfo.email) txtContent += `Email: ${crmInfo.email}\r\n`;
         if (crmInfo.contactPage) txtContent += `Contact: ${crmInfo.contactPage}\r\n`;

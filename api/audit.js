@@ -104,6 +104,7 @@ module.exports = async (req, res) => {
         emails: [],
         contactPage: null,
         hasCta: false,
+        country: null,
         errorMessage: null
     };
 
@@ -198,6 +199,46 @@ module.exports = async (req, res) => {
             return !lower.endsWith('.png') && !lower.endsWith('.jpg') && !lower.endsWith('.gif') && !lower.endsWith('.svg') && !lower.endsWith('.webp') && !lower.includes('example.com') && !lower.includes('wix.com');
         });
         result.emails = uniqueEmails.slice(0, 3); // Max 3 emails
+
+        // 6. Detect Country / Location (Canada vs USA vs Other)
+        let detectedCountry = null;
+        
+        // Check Canadian Postal Code regex: [A-Z]\d[A-Z] \d[A-Z]\d
+        const caPostalRegex = /\b[a-z]\d[a-z]\s?\d[a-z]\d\b/i;
+        if (caPostalRegex.test(html)) {
+            detectedCountry = 'Canada 🇨🇦';
+        }
+        
+        // Check US Zip code regex: \b\d{5}(-\d{4})?\b
+        if (!detectedCountry) {
+            const usZipRegex = /\b\d{5}(-\d{4})?\b/;
+            if (usZipRegex.test(html) && (htmlLower.includes('zip') || htmlLower.includes('usa') || htmlLower.includes('united states'))) {
+                detectedCountry = 'United States 🇺🇸';
+            }
+        }
+        
+        // Check Canadian area codes
+        if (!detectedCountry) {
+            const caAreaCodes = ['604', '778', '250', '236', '403', '587', '825', '780', '306', '639', '204', '431', '416', '647', '437', '905', '289', '365', '705', '249', '613', '343', '519', '226', '548', '807', '514', '438', '450', '579', '418', '581', '819', '873', '506', '902', '782', '709', '867'];
+            const hasCaPhone = caAreaCodes.some(code => {
+                const regex = new RegExp(`\\b\\(?${code}\\)?[\\s.-]?\\d{3}[\\s.-]?\\d{4}\\b`);
+                return regex.test(html);
+            });
+            if (hasCaPhone) {
+                detectedCountry = 'Canada 🇨🇦';
+            }
+        }
+        
+        // Fallback checks
+        if (!detectedCountry) {
+            if (htmlLower.includes('cad$') || htmlLower.includes('cdn$') || htmlLower.includes('currency: cad') || htmlLower.includes('prices in cad')) {
+                detectedCountry = 'Canada 🇨🇦';
+            } else if (targetDomain.endsWith('.ca')) {
+                detectedCountry = 'Canada 🇨🇦';
+            }
+        }
+        
+        result.country = detectedCountry || 'Unknown 🌐';
 
     } catch (e) {
         result.active = false;
