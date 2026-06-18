@@ -521,12 +521,55 @@ window.openDetailsDrawer = function(domain, matchKeyword) {
     // Load Score & Insights UI
     renderScoreAndInsights(info);
 
+    // Load Live Preview Frame URL
+    const iframe = document.getElementById('preview-iframe');
+    const urlDisplay = document.getElementById('preview-url-display');
+    const fallbackBox = document.getElementById('preview-frame-fallback');
+    
+    // Default url schemes
+    const secureScheme = info.auditResult && info.auditResult.https ? 'https://' : 'http://';
+    const targetUrl = secureScheme + domain;
+    
+    urlDisplay.textContent = targetUrl;
+    fallbackBox.classList.add('hidden');
+    iframe.src = targetUrl;
+
+    // Detect if X-Frame-Options blocks the site (usually triggers immediately or fails to load)
+    iframe.onload = () => {
+        try {
+            // If we can access the iframe contentWindow document (same-origin rules), 
+            // it means it loaded fine. If it throws a security error (cross-origin), 
+            // it also loaded fine (since third party domains are cross-origin).
+            // However, if the iframe content is empty or blocked by browser policies,
+            // we will catch it here.
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+        } catch (e) {
+            // Normal cross-origin block means page is rendering!
+            fallbackBox.classList.add('hidden');
+        }
+    };
+
+    // If domain has Cloudflare or is inactive, show the fallback block directly
+    if (info.auditResult) {
+        if (!info.auditResult.active) {
+            fallbackBox.classList.remove('hidden');
+            document.querySelector('#preview-frame-fallback h3').textContent = 'Domain Inactive';
+            document.querySelector('#preview-frame-fallback p').textContent = 'This domain does not have an active website to preview.';
+        } else if (info.auditResult.isCloudflare) {
+            fallbackBox.classList.remove('hidden');
+            document.querySelector('#preview-frame-fallback h3').textContent = 'Security Firewall Active';
+            document.querySelector('#preview-frame-fallback p').textContent = 'This website is protected by Cloudflare and cannot be framed. Click above to open.';
+        }
+    }
+
     // Show Drawer
     detailsDrawer.classList.remove('hidden');
 };
 
 function closeDrawer() {
     detailsDrawer.classList.add('hidden');
+    // Clear iframe src to stop audio/scripts from running in background
+    document.getElementById('preview-iframe').src = '';
     activeDrawerDomain = null;
     renderResultsTable(searchInput.value.trim().toLowerCase()); // Refresh score badges / status selectors in main table
 }

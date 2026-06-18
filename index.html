@@ -192,7 +192,31 @@
     </main>
 
     <!-- Side-Drawer Details Panel -->
-    <div id="details-drawer" class="drawer-overlay hidden">
+    <div id="details-drawer" class="drawer-overlay hidden" style="justify-content: flex-end; display: flex; width: 100vw; height: 100vh;">
+        <!-- Left Pane: Live website preview iframe panel -->
+        <div id="drawer-preview-pane" style="flex-grow: 1; height: 100%; display: flex; flex-direction: column; background: #07080d; border-right: 1px solid rgba(255,255,255,0.06);">
+            <div style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                    <span id="preview-url-display" style="font-size: 0.8rem; color: var(--text-secondary); font-family: monospace;">http://domain.com</span>
+                </div>
+                <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="window.open(document.getElementById('preview-iframe').src, '_blank')">
+                    🔗 Open Site In New Tab
+                </button>
+            </div>
+            <div style="flex-grow: 1; position: relative;">
+                <iframe id="preview-iframe" src="" style="width: 100%; height: 100%; border: none; background: #fff;" sandbox="allow-scripts allow-same-origin"></iframe>
+                <!-- X-Frame-Options / CORS blocked notice fallback -->
+                <div id="preview-frame-fallback" class="hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #07080d; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; gap: 1rem;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="width: 4rem; height: 4rem; color: var(--text-muted);">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <h3 style="font-family: var(--font-heading); font-size: 1.1rem; color: #fff;">Security Policy Restriction</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); max-width: 380px;">This website restricts embedding via standard frames. Click the button above to view the live site directly in a new tab.</p>
+                </div>
+            </div>
+        </div>
+
         <div class="drawer-content">
             <header class="drawer-header">
                 <div class="drawer-title-group">
