@@ -240,6 +240,14 @@
                         <div class="input-group">
                             <label>Email Address</label>
                             <input type="email" id="drawer-contact-email" placeholder="No email found">
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                                <button type="button" id="btn-whois-lookup" class="btn btn-secondary" style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.7rem; justify-content: center;" onclick="window.open('https://lookup.icann.org/en/lookup?q=' + encodeURIComponent(activeDrawerDomain), '_blank')">
+                                    🌐 ICANN WHOIS
+                                </button>
+                                <button type="button" id="btn-google-contact" class="btn btn-secondary" style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.7rem; justify-content: center;" onclick="window.open('https://www.google.com/search?q=' + encodeURIComponent(activeDrawerDomain + ' contact OR email OR about'), '_blank')">
+                                    🔍 Find Contact
+                                </button>
+                            </div>
                         </div>
                         <div class="input-group">
                             <label>Contact Page URL</label>
