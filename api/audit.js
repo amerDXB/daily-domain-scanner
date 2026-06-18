@@ -105,6 +105,7 @@ module.exports = async (req, res) => {
         contactPage: null,
         hasCta: false,
         country: null,
+        preLaunch: false,
         errorMessage: null
     };
 
@@ -253,6 +254,25 @@ module.exports = async (req, res) => {
         }
         
         result.country = detectedCountry || 'Unknown 🌐';
+
+        // 7. Detect Pre-launch / Placeholder / Under Construction state
+        const preLaunchIndicators = [
+            'hello world!',
+            'sample page',
+            'coming soon',
+            'under construction',
+            'proudly powered by wordpress',
+            'site is currently offline',
+            'check back soon',
+            'launching soon',
+            'no products were found matching your selection',
+            'empty shop',
+            'wix.com. this site was designed with the .com website builder',
+            'is registered at namecheap',
+            'this domain is registered'
+        ];
+        
+        result.preLaunch = preLaunchIndicators.some(indicator => htmlLower.includes(indicator));
 
     } catch (e) {
         result.active = false;

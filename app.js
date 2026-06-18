@@ -507,7 +507,7 @@ function renderScoreAndInsights(info) {
         
         const audit = info.auditResult;
         if (audit) {
-            if (!audit.active) {
+            if (!audit.active || audit.preLaunch) {
                 lostOppLevel = 'High';
                 lostOppClass = 'badge-status-closed'; // red
             } else if (!audit.https && audit.emails.length === 0 && !audit.contactPage) {
@@ -525,7 +525,9 @@ function renderScoreAndInsights(info) {
         let outreachMessage = '';
         if (audit) {
             if (!audit.active) {
-                outreachMessage = `Hi there,\n\nI saw that you recently registered ${info.domain}. Congratulations on the new domain!\n\nI noticed there is no website active on it yet. If you are looking to build a high-performance web presence or a local landing page to start driving customers in your area, I'd love to help you design a modern custom site.\n\nAre you open to a quick 10-minute chat to discuss what you have planned for the new domain?\n\nBest,\n[Your Name]`;
+                outreachMessage = `Hi there,\n\nI saw that you recently registered ${activeDrawerDomain}. Congratulations on the new domain!\n\nI noticed there is no website active on it yet. If you are looking to build a high-performance web presence or a local landing page to start driving customers in your area, I'd love to help you design a modern custom site.\n\nAre you open to a quick 10-minute chat to discuss what you have planned for the new domain?\n\nBest,\n[Your Name]`;
+            } else if (audit.preLaunch) {
+                outreachMessage = `Hi,\n\nI came across ${activeDrawerDomain} while researching new local businesses. It looks like the site may still be in the early setup stage.\n\nI had a few ideas that could help turn it into a simple launch page and start collecting inquiries before the full website is ready. Happy to share if useful.\n\nBest,\n[Your Name]`;
             } else {
                 let issuesList = [];
                 if (!audit.https) {
@@ -545,9 +547,9 @@ function renderScoreAndInsights(info) {
                 }
 
                 if (issuesList.length > 0) {
-                    outreachMessage = `Hi there,\n\nI was doing some local market research and came across ${info.domain}. I noticed a few quick wins that could help you convert more visitors into paying customers:\n\n${issuesList.join('\n')}\n\nI'd be happy to show you how a few quick updates could help boost your inquiries. Would you be open to a quick call this week?\n\nBest,\n[Your Name]`;
+                    outreachMessage = `Hi there,\n\nI was doing some local market research and came across ${activeDrawerDomain}. I noticed a few quick wins that could help you convert more visitors into paying customers:\n\n${issuesList.join('\n')}\n\nI'd be happy to show you how a few quick updates could help boost your inquiries. Would you be open to a quick call this week?\n\nBest,\n[Your Name]`;
                 } else {
-                    outreachMessage = `Hi there,\n\nI visited your website ${info.domain} and was really impressed by the design and load speed. It looks fantastic!\n\nI specialize in helping local businesses drive traffic to their sites. Since your website foundation is already strong, I'd love to discuss some SEO and traffic growth strategies with you.\n\nAre you open to a quick call next week?\n\nBest,\n[Your Name]`;
+                    outreachMessage = `Hi there,\n\nI visited your website ${activeDrawerDomain} and was really impressed by the design and load speed. It looks fantastic!\n\nI specialize in helping local businesses drive traffic to their sites. Since your website foundation is already strong, I'd love to discuss some SEO and traffic growth strategies with you.\n\nAre you open to a quick call next week?\n\nBest,\n[Your Name]`;
                 }
             }
         }
@@ -583,6 +585,11 @@ function calculateOpportunityScore(audit) {
     if (!audit.active) {
         // Domain is registered but website does not respond or exist
         return 80; // High opportunity score for inactive domain
+    }
+
+    // Pre-launch/placeholder detection (High-signal opportunity)
+    if (audit.preLaunch) {
+        score += 25;
     }
 
     // SSL Missing check
@@ -632,6 +639,20 @@ function generateInsightsList(info) {
             desc: 'The domain exists but has no active website. Perfect opportunity to sell a custom landing page.'
         });
         return list;
+    }
+
+    // Pre-launch indicator
+    if (audit.preLaunch) {
+        list.push({
+            type: 'negative',
+            title: 'Website Appears Pre-launch',
+            desc: 'Found default posts, sample pages, coming soon placeholders, or empty WooCommerce catalogs (+25 score).'
+        });
+        list.push({
+            type: 'warning',
+            title: 'Launch Essentials Missing',
+            desc: 'Missing key elements like conversion structures, brand setup, proper SEO foundation, and email captures.'
+        });
     }
 
     // HTTPS SSL Certificate
