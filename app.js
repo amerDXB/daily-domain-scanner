@@ -605,7 +605,6 @@ function renderScoreAndInsights(info) {
         let lostOppLevel = 'Low';
         let lostOppClass = 'badge-status-interested'; // green
         
-        const audit = info.auditResult;
         if (audit) {
             if (!audit.active || audit.preLaunch) {
                 lostOppLevel = 'High';
