@@ -532,16 +532,23 @@ window.openDetailsDrawer = function(domain, matchKeyword) {
     
     urlDisplay.textContent = targetUrl;
     fallbackBox.classList.add('hidden');
-    iframe.src = targetUrl;
+    
+    // Check for Mixed Content block (Vercel is HTTPS, so we cannot load HTTP sites in iframe)
+    const isLocalHttps = window.location.protocol === 'https:';
+    
+    if (isLocalHttps && secureScheme === 'http://') {
+        iframe.src = 'about:blank';
+        fallbackBox.classList.remove('hidden');
+        document.querySelector('#preview-frame-fallback h3').textContent = 'Insecure HTTP Blocked';
+        document.querySelector('#preview-frame-fallback p').textContent = 'This application runs securely over HTTPS, so browser security blocks loading HTTP-only websites in frames. Click the button above to open the site directly.';
+    } else {
+        iframe.src = targetUrl;
+    }
 
     // Detect if X-Frame-Options blocks the site (usually triggers immediately or fails to load)
     iframe.onload = () => {
+        if (iframe.src === 'about:blank') return;
         try {
-            // If we can access the iframe contentWindow document (same-origin rules), 
-            // it means it loaded fine. If it throws a security error (cross-origin), 
-            // it also loaded fine (since third party domains are cross-origin).
-            // However, if the iframe content is empty or blocked by browser policies,
-            // we will catch it here.
             const doc = iframe.contentDocument || iframe.contentWindow.document;
         } catch (e) {
             // Normal cross-origin block means page is rendering!
