@@ -163,17 +163,17 @@ module.exports = async (req, res) => {
             result.cms = 'WordPress';
         }
 
-        // 2. Scan for Social Links
-        const fbMatch = html.match(/href="([^"]*facebook\.com\/[^"]+)"/i);
+        // 2. Scan for Social Links (Refined to match real profiles and exclude tracking pixels, favicons, etc.)
+        const fbMatch = html.match(/href="([^"]*facebook\.com\/(?!(sharer|plugins|tr\?|groups))[a-zA-Z0-9._-]+)"/i);
         if (fbMatch) result.socials.facebook = fbMatch[1];
 
-        const igMatch = html.match(/href="([^"]*instagram\.com\/[^"]+)"/i);
+        const igMatch = html.match(/href="([^"]*instagram\.com\/(?!(developer|embed|explore|p\/))[a-zA-Z0-9._-]+)"/i);
         if (igMatch) result.socials.instagram = igMatch[1];
 
-        const liMatch = html.match(/href="([^"]*linkedin\.com\/[^"]+)"/i);
+        const liMatch = html.match(/href="([^"]*linkedin\.com\/(in|company)\/[a-zA-Z0-9._-]+)"/i);
         if (liMatch) result.socials.linkedin = liMatch[1];
 
-        const twMatch = html.match(/href="([^"]*(twitter\.com|x\.com)\/[^"]+)"/i);
+        const twMatch = html.match(/href="([^"]*(twitter\.com|x\.com)\/(?!(share|intent|favicon))[a-zA-Z0-9._-]+)"/i);
         if (twMatch) result.socials.twitter = twMatch[1];
 
         // 3. Scan for Contact Page
@@ -190,13 +190,27 @@ module.exports = async (req, res) => {
         const ctaKeywords = ['book now', 'contact us', 'call now', 'get a quote', 'schedule', 'free consultation', 'learn more', 'hire us', 'sign up'];
         result.hasCta = ctaKeywords.some(keyword => htmlLower.includes(keyword));
 
-        // 5. Scan for emails in raw HTML (excluding assets/images)
+        // 5. Scan for emails in raw HTML (excluding assets/images & system/builder templates)
         const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}/g;
         const matches = html.match(emailRegex) || [];
         const uniqueEmails = [...new Set(matches)].filter(email => {
-            // Filter out common false positives like image extensions or standard libraries
             const lower = email.toLowerCase();
-            return !lower.endsWith('.png') && !lower.endsWith('.jpg') && !lower.endsWith('.gif') && !lower.endsWith('.svg') && !lower.endsWith('.webp') && !lower.includes('example.com') && !lower.includes('wix.com');
+            const blocklist = ['sentry', 'wixpress', 'shopify', 'cloudflare', 'noreply', 'example.com', 'wix.com', 'template', 'support@', 'admin@', 'info@'];
+            
+            // Check if any blocklisted phrase matches
+            const isBlocked = blocklist.some(term => {
+                if (term.endsWith('@')) {
+                    return lower.startsWith(term);
+                }
+                return lower.includes(term);
+            });
+
+            return !isBlocked && 
+                   !lower.endsWith('.png') && 
+                   !lower.endsWith('.jpg') && 
+                   !lower.endsWith('.gif') && 
+                   !lower.endsWith('.svg') && 
+                   !lower.endsWith('.webp');
         });
         result.emails = uniqueEmails.slice(0, 3); // Max 3 emails
 

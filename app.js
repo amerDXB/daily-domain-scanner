@@ -40,6 +40,9 @@ const drawerDomain = document.getElementById('drawer-domain');
 const drawerMatchBadge = document.getElementById('drawer-match-badge');
 const drawerCountryBadge = document.getElementById('drawer-country-badge');
 const drawerScoreVal = document.getElementById('drawer-score-val');
+const drawerLostOpp = document.getElementById('drawer-lost-opp');
+const drawerOutreachText = document.getElementById('drawer-outreach-text');
+const copyOutreachBtn = document.getElementById('copy-outreach-btn');
 const drawerStatusSelect = document.getElementById('drawer-status-select');
 const drawerAuditBtn = document.getElementById('drawer-audit-btn');
 const drawerInsights = document.getElementById('drawer-insights');
@@ -191,6 +194,22 @@ function setupEventListeners() {
     closeDrawerBtn.addEventListener('click', closeDrawer);
     saveDrawerBtn.addEventListener('click', saveDrawerData);
     drawerAuditBtn.addEventListener('click', runAuditOnActiveDomain);
+    
+    // Copy Outreach Template Button
+    copyOutreachBtn.addEventListener('click', () => {
+        drawerOutreachText.select();
+        drawerOutreachText.setSelectionRange(0, 99999); // For mobile
+        try {
+            navigator.clipboard.writeText(drawerOutreachText.value);
+        } catch (err) {
+            document.execCommand('copy'); // Fallback
+        }
+        const oldText = copyOutreachBtn.textContent;
+        copyOutreachBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyOutreachBtn.textContent = oldText;
+        }, 2000);
+    });
 
     // Close drawer on overlay click
     detailsDrawer.addEventListener('click', (e) => {
@@ -390,12 +409,12 @@ function renderResultsTable(filter = '') {
             <td>
                 <select onchange="updateLeadStatus('${escapeHTML(domain)}', this.value)">
                     <option value="New" ${crmInfo.status === 'New' ? 'selected' : ''}>New</option>
-                    <option value="Researching" ${crmInfo.status === 'Researching' ? 'selected' : ''}>Researching</option>
-                    <option value="Emailed" ${crmInfo.status === 'Emailed' ? 'selected' : ''}>Emailed</option>
-                    <option value="Followed Up" ${crmInfo.status === 'Followed Up' ? 'selected' : ''}>Followed Up</option>
-                    <option value="Interested" ${crmInfo.status === 'Interested' ? 'selected' : ''}>Interested</option>
+                    <option value="Qualified" ${crmInfo.status === 'Qualified' ? 'selected' : ''}>Qualified</option>
+                    <option value="Contacted" ${crmInfo.status === 'Contacted' ? 'selected' : ''}>Contacted</option>
+                    <option value="Replied" ${crmInfo.status === 'Replied' ? 'selected' : ''}>Replied</option>
+                    <option value="Meeting" ${crmInfo.status === 'Meeting' ? 'selected' : ''}>Meeting</option>
+                    <option value="Won" ${crmInfo.status === 'Won' ? 'selected' : ''}>Won</option>
                     <option value="Closed" ${crmInfo.status === 'Closed' ? 'selected' : ''}>Closed</option>
-                    <option value="Ignore" ${crmInfo.status === 'Ignore' ? 'selected' : ''}>Ignore</option>
                 </select>
             </td>
             <td>
@@ -459,6 +478,9 @@ function renderScoreAndInsights(info) {
     
     // Reset classes
     scoreOuter.className = 'score-circle-outer';
+    drawerLostOpp.className = 'badge-status badge-status-new';
+    drawerLostOpp.textContent = 'Lost Opp: --';
+    drawerOutreachText.value = '';
 
     if (info.score === null) {
         scoreVal.textContent = '--';
@@ -478,6 +500,58 @@ function renderScoreAndInsights(info) {
         } else {
             scoreOuter.classList.add('good');
         }
+
+        // 1. Calculate Estimated Lost Opportunity (High / Medium / Low)
+        let lostOppLevel = 'Low';
+        let lostOppClass = 'badge-status-interested'; // green
+        
+        const audit = info.auditResult;
+        if (audit) {
+            if (!audit.active) {
+                lostOppLevel = 'High';
+                lostOppClass = 'badge-status-closed'; // red
+            } else if (!audit.https && audit.emails.length === 0 && !audit.contactPage) {
+                lostOppLevel = 'High';
+                lostOppClass = 'badge-status-closed';
+            } else if (!audit.hasCta || (audit.responseTime > 1500) || (['Wix', 'Squarespace', 'Weebly'].includes(audit.cms) && (!audit.hasCta || audit.responseTime > 1500))) {
+                lostOppLevel = 'Medium';
+                lostOppClass = 'badge-status-followed_up'; // orange
+            }
+        }
+        drawerLostOpp.textContent = `Lost Opp: ${lostOppLevel}`;
+        drawerLostOpp.className = `badge-status ${lostOppClass}`;
+
+        // 2. Generate Suggested Outreach Message
+        let outreachMessage = '';
+        if (audit) {
+            if (!audit.active) {
+                outreachMessage = `Hi there,\n\nI saw that you recently registered ${info.domain}. Congratulations on the new domain!\n\nI noticed there is no website active on it yet. If you are looking to build a high-performance web presence or a local landing page to start driving customers in your area, I'd love to help you design a modern custom site.\n\nAre you open to a quick 10-minute chat to discuss what you have planned for the new domain?\n\nBest,\n[Your Name]`;
+            } else {
+                let issuesList = [];
+                if (!audit.https) {
+                    issuesList.push(`• Secure Connection: Your site currently shows a 'Not Secure' warning in Google Chrome. We can fix this by installing an SSL certificate so visitors feel safe submitting their information.`);
+                }
+                if (!audit.hasCta) {
+                    issuesList.push(`• No Clear Call-To-Action (CTA): I noticed there isn't a clear action path (like a 'Book Now' or 'Get a Quote' button) prominently featured on the homepage to capture leads.`);
+                }
+                if (audit.responseTime > 1500) {
+                    issuesList.push(`• Slow Performance: The site takes quite a while to load on mobile (${audit.responseTime}ms), which can cause potential customers to bounce before the page loads.`);
+                }
+                if (audit.emails.length === 0 && !audit.contactPage) {
+                    issuesList.push(`• Direct Contact Path: It is currently difficult for visitors to find a direct contact form or email address on the main page.`);
+                }
+                if (['Wix', 'Squarespace', 'Weebly'].includes(audit.cms) && (!audit.hasCta || audit.responseTime > 1500)) {
+                    issuesList.push(`• Platform Optimization: Since the site is built on ${audit.cms} and experiencing speed/CTA limitations, upgrading to a custom high-performance layout would significantly improve your conversions.`);
+                }
+
+                if (issuesList.length > 0) {
+                    outreachMessage = `Hi there,\n\nI was doing some local market research and came across ${info.domain}. I noticed a few quick wins that could help you convert more visitors into paying customers:\n\n${issuesList.join('\n')}\n\nI'd be happy to show you how a few quick updates could help boost your inquiries. Would you be open to a quick call this week?\n\nBest,\n[Your Name]`;
+                } else {
+                    outreachMessage = `Hi there,\n\nI visited your website ${info.domain} and was really impressed by the design and load speed. It looks fantastic!\n\nI specialize in helping local businesses drive traffic to their sites. Since your website foundation is already strong, I'd love to discuss some SEO and traffic growth strategies with you.\n\nAre you open to a quick call next week?\n\nBest,\n[Your Name]`;
+                }
+            }
+        }
+        drawerOutreachText.value = outreachMessage;
 
         // Render Insights list
         drawerInsights.innerHTML = '';
@@ -508,20 +582,22 @@ function calculateOpportunityScore(audit) {
     
     if (!audit.active) {
         // Domain is registered but website does not respond or exist
-        return 20; // Specific static score (easy landing page pitch!)
+        return 80; // High opportunity score for inactive domain
     }
 
     // SSL Missing check
     if (!audit.https) score += 15;
     
-    // Site Builders check
+    // Conditional Builder scoring: Only add score (+10) if the CMS site has performance or conversion issues
     if (['Wix', 'Squarespace', 'Weebly'].includes(audit.cms)) {
-        score += 10;
+        if ((audit.responseTime && audit.responseTime > 1500) || !audit.hasCta) {
+            score += 10;
+        }
     }
     
     // Speed checks
     if (audit.responseTime && audit.responseTime > 1500) {
-        score += 10;
+        score += 15;
     }
     
     // Missing social channels
@@ -529,16 +605,15 @@ function calculateOpportunityScore(audit) {
     if (!hasSocials) score += 5;
     
     // Call-To-Action (CTA) check
-    if (!audit.hasCta) score += 10;
+    if (!audit.hasCta) score += 15;
 
     // Contact info presence
     if (audit.emails.length === 0 && !audit.contactPage) {
-        score += 10;
+        score += 15;
     }
     
-    // Domain age < 90 days would go here (+10) - we mock this as we don't have WHOIS details, 
-    // but we add it to the base score if we detect a fresh launch
-    score += 10; // Default weight for fresh registered domains
+    // Default base score for new domains
+    score += 10;
 
     return Math.min(Math.max(score, 0), 100);
 }

@@ -193,22 +193,34 @@
                         <div class="score-circle-outer">
                             <span id="drawer-score-val">--</span>
                         </div>
-                        <span class="score-lbl">Opportunity Score</span>
+                        <span class="score-lbl" style="margin-bottom: 0.4rem;">Opportunity Score</span>
+                        <span id="drawer-lost-opp" class="badge-status badge-status-new" style="font-size:0.7rem; padding:0.15rem 0.4rem;">Lost Opp: --</span>
                     </div>
                     
                     <div class="status-selector-wrapper">
                         <label for="drawer-status-select">Pipeline Status</label>
                         <select id="drawer-status-select" class="status-select">
                             <option value="New">New</option>
-                            <option value="Researching">Researching</option>
-                            <option value="Emailed">Emailed</option>
-                            <option value="Followed Up">Followed Up</option>
-                            <option value="Interested">Interested</option>
+                            <option value="Qualified">Qualified</option>
+                            <option value="Contacted">Contacted</option>
+                            <option value="Replied">Replied</option>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Won">Won</option>
                             <option value="Closed">Closed</option>
-                            <option value="Ignore">Ignore</option>
                         </select>
                         <button id="drawer-audit-btn" class="btn btn-primary btn-audit-trigger">
                             Run Audit Scan
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Suggested Outreach Copy Section -->
+                <div class="drawer-section">
+                    <h3>Suggested Outreach</h3>
+                    <div class="outreach-wrapper">
+                        <textarea id="drawer-outreach-text" rows="5" readonly style="width:100%; font-family:var(--font-body); font-size:0.8rem; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.06); color:#f3f4f6; resize:none;" placeholder="Outreach suggestions will appear after auditing the domain..."></textarea>
+                        <button id="copy-outreach-btn" class="btn btn-secondary btn-audit-trigger" style="width:100%; margin-top:0.5rem; justify-content:center;">
+                            Copy Outreach Template
                         </button>
                     </div>
                 </div>
