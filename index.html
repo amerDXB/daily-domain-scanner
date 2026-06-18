@@ -147,13 +147,15 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Domain Name</th>
-                                    <th>Matched Keyword</th>
+                                    <th>Why Matched</th>
+                                    <th>Score</th>
+                                    <th>Status</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="results-body">
                                 <tr>
-                                    <td colspan="4" class="empty-state">
+                                    <td colspan="6" class="empty-state">
                                         <div class="empty-state-content">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -170,8 +172,102 @@
         </div>
     </main>
 
+    <!-- Side-Drawer Details Panel -->
+    <div id="details-drawer" class="drawer-overlay hidden">
+        <div class="drawer-content">
+            <header class="drawer-header">
+                <div class="drawer-title-group">
+                    <h2 id="drawer-domain">domain.com</h2>
+                    <span id="drawer-match-badge" class="badge">Matched: squamish</span>
+                </div>
+                <button id="close-drawer-btn" class="close-drawer-btn">&times;</button>
+            </header>
+
+            <div class="drawer-body">
+                <!-- Audit Score & Status section -->
+                <div class="drawer-section score-status-block">
+                    <div class="score-circle-wrapper">
+                        <div class="score-circle-outer">
+                            <span id="drawer-score-val">--</span>
+                        </div>
+                        <span class="score-lbl">Opportunity Score</span>
+                    </div>
+                    
+                    <div class="status-selector-wrapper">
+                        <label for="drawer-status-select">Pipeline Status</label>
+                        <select id="drawer-status-select" class="status-select">
+                            <option value="New">New</option>
+                            <option value="Researching">Researching</option>
+                            <option value="Emailed">Emailed</option>
+                            <option value="Followed Up">Followed Up</option>
+                            <option value="Interested">Interested</option>
+                            <option value="Closed">Closed</option>
+                            <option value="Ignore">Ignore</option>
+                        </select>
+                        <button id="drawer-audit-btn" class="btn btn-primary btn-audit-trigger">
+                            Run Audit Scan
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Insights Section -->
+                <div class="drawer-section">
+                    <h3>Quick Opportunities</h3>
+                    <div id="drawer-insights" class="insights-list">
+                        <div class="insight-empty">Click "Run Audit Scan" above to analyze this domain and generate recommendations.</div>
+                    </div>
+                </div>
+
+                <!-- Contacts Section -->
+                <div class="drawer-section">
+                    <h3>Captured Contacts & Profiles</h3>
+                    <div class="contact-inputs">
+                        <div class="input-group">
+                            <label>Email Address</label>
+                            <input type="email" id="drawer-contact-email" placeholder="No email found">
+                        </div>
+                        <div class="input-group">
+                            <label>Contact Page URL</label>
+                            <input type="text" id="drawer-contact-page" placeholder="No contact page found">
+                        </div>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label>Instagram</label>
+                                <input type="text" id="drawer-contact-instagram" placeholder="Add Instagram Link">
+                            </div>
+                            <div class="input-group">
+                                <label>Facebook</label>
+                                <input type="text" id="drawer-contact-facebook" placeholder="Add Facebook Link">
+                            </div>
+                        </div>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label>LinkedIn</label>
+                                <input type="text" id="drawer-contact-linkedin" placeholder="Add LinkedIn Link">
+                            </div>
+                            <div class="input-group">
+                                <label>Twitter/X</label>
+                                <input type="text" id="drawer-contact-twitter" placeholder="Add Twitter/X Link">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Section -->
+                <div class="drawer-section">
+                    <h3>Internal Notes</h3>
+                    <textarea id="drawer-notes" rows="4" placeholder="Add outreach logs, conversation notes, or task reminders for this lead..."></textarea>
+                </div>
+            </div>
+
+            <footer class="drawer-footer">
+                <button id="save-drawer-btn" class="btn btn-primary w-full">Save Changes</button>
+            </footer>
+        </div>
+    </div>
+
     <footer class="app-footer">
-        <p>100% Client-Side. No domain data is sent to any server. Your data remains secure on your computer.</p>
+        <p>Your leads pipeline is saved securely in your browser's local storage. Audit requests are proxied via Vercel Serverless Functions.</p>
     </footer>
 
     <script src="app.js"></script>

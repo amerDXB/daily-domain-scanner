@@ -1,0 +1,208 @@
+const http = require('http');
+const https = require('https');
+const { URL } = require('url');
+
+// Helper to perform requests with a timeout
+function fetchUrl(urlStr, timeoutMs = 5000) {
+    return new Promise((resolve, reject) => {
+        try {
+            const parsedUrl = new URL(urlStr);
+            const client = parsedUrl.protocol === 'https:' ? https : http;
+            const startTime = Date.now();
+
+            const options = {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5'
+                },
+                timeout: timeoutMs
+            };
+
+            const req = client.request(parsedUrl, options, (res) => {
+                // Redirect support (max 3 jumps)
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    req.destroy();
+                    // Resolve location to let client handle redirect if needed or follow
+                    resolve({ redirect: res.headers.location, statusCode: res.statusCode });
+                    return;
+                }
+
+                let data = '';
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    data += chunk;
+                    // Cap data size at 500KB to prevent memory issues
+                    if (data.length > 500000) {
+                        req.destroy();
+                        resolve({ html: data, headers: res.headers, statusCode: res.statusCode, responseTime: Date.now() - startTime });
+                    }
+                });
+
+                res.on('end', () => {
+                    resolve({
+                        html: data,
+                        headers: res.headers,
+                        statusCode: res.statusCode,
+                        responseTime: Date.now() - startTime
+                    });
+                });
+            });
+
+            req.on('timeout', () => {
+                req.destroy();
+                reject(new Error('Timeout'));
+            });
+
+            req.on('error', (err) => {
+                reject(err);
+            });
+
+            req.end();
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+module.exports = async (req, res) => {
+    // Add CORS headers
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
+    const { domain } = req.query;
+
+    if (!domain) {
+        return res.status(400).json({ error: 'Missing domain parameter' });
+    }
+
+    // Clean up domain format
+    let targetDomain = domain.trim().toLowerCase();
+    targetDomain = targetDomain.replace(/^(https?:\/\/)?(www\.)?/, '');
+
+    const result = {
+        domain: targetDomain,
+        active: false,
+        https: false,
+        statusCode: null,
+        responseTime: null,
+        cms: null,
+        socials: {
+            facebook: null,
+            instagram: null,
+            linkedin: null,
+            twitter: null
+        },
+        emails: [],
+        contactPage: null,
+        hasCta: false,
+        errorMessage: null
+    };
+
+    try {
+        let responseData = null;
+        let usedHttps = true;
+
+        // Try HTTPS first
+        try {
+            responseData = await fetchUrl(`https://${targetDomain}`);
+            result.https = true;
+        } catch (httpsErr) {
+            // Fallback to HTTP
+            usedHttps = false;
+            try {
+                responseData = await fetchUrl(`http://${targetDomain}`);
+                result.https = false;
+            } catch (httpErr) {
+                throw new Error('Host unreachable on HTTP and HTTPS');
+            }
+        }
+
+        // Handle direct redirect once if returned
+        if (responseData && responseData.redirect) {
+            try {
+                let redirectUrl = responseData.redirect;
+                if (!redirectUrl.startsWith('http')) {
+                    redirectUrl = (usedHttps ? 'https://' : 'http://') + targetDomain + (redirectUrl.startsWith('/') ? '' : '/') + redirectUrl;
+                }
+                responseData = await fetchUrl(redirectUrl);
+            } catch (redirectErr) {
+                // Ignore redirect fail and scan whatever we have
+            }
+        }
+
+        if (!responseData || !responseData.html) {
+            throw new Error('No content returned from website');
+        }
+
+        const html = responseData.html;
+        result.active = true;
+        result.statusCode = responseData.statusCode;
+        result.responseTime = responseData.responseTime;
+
+        // 1. Detect CMS / Site Builder
+        const htmlLower = html.toLowerCase();
+        if (htmlLower.includes('wix.com') || htmlLower.includes('wixpress') || htmlLower.includes('wix-code')) {
+            result.cms = 'Wix';
+        } else if (htmlLower.includes('squarespace.com') || htmlLower.includes('squarespace-tiles') || htmlLower.includes('static1.squarespace.com')) {
+            result.cms = 'Squarespace';
+        } else if (htmlLower.includes('cdn.shopify.com') || htmlLower.includes('shopify.theme')) {
+            result.cms = 'Shopify';
+        } else if (htmlLower.includes('weebly.com') || htmlLower.includes('weebly-theme') || htmlLower.includes('cdn2.editmysite.com')) {
+            result.cms = 'Weebly';
+        } else if (htmlLower.includes('/wp-content/') || htmlLower.includes('wp-embed') || htmlLower.includes('wordpress')) {
+            result.cms = 'WordPress';
+        }
+
+        // 2. Scan for Social Links
+        const fbMatch = html.match(/href="([^"]*facebook\.com\/[^"]+)"/i);
+        if (fbMatch) result.socials.facebook = fbMatch[1];
+
+        const igMatch = html.match(/href="([^"]*instagram\.com\/[^"]+)"/i);
+        if (igMatch) result.socials.instagram = igMatch[1];
+
+        const liMatch = html.match(/href="([^"]*linkedin\.com\/[^"]+)"/i);
+        if (liMatch) result.socials.linkedin = liMatch[1];
+
+        const twMatch = html.match(/href="([^"]*(twitter\.com|x\.com)\/[^"]+)"/i);
+        if (twMatch) result.socials.twitter = twMatch[1];
+
+        // 3. Scan for Contact Page
+        const contactMatch = html.match(/href="([^"]*(contact|contact-us|get-in-touch|support)[^"]*)"/i);
+        if (contactMatch) {
+            let path = contactMatch[1];
+            if (!path.startsWith('http')) {
+                path = (result.https ? 'https://' : 'http://') + targetDomain + (path.startsWith('/') ? '' : '/') + path;
+            }
+            result.contactPage = path;
+        }
+
+        // 4. Scan for CTA (Call To Action Buttons)
+        const ctaKeywords = ['book now', 'contact us', 'call now', 'get a quote', 'schedule', 'free consultation', 'learn more', 'hire us', 'sign up'];
+        result.hasCta = ctaKeywords.some(keyword => htmlLower.includes(keyword));
+
+        // 5. Scan for emails in raw HTML (excluding assets/images)
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}/g;
+        const matches = html.match(emailRegex) || [];
+        const uniqueEmails = [...new Set(matches)].filter(email => {
+            // Filter out common false positives like image extensions or standard libraries
+            const lower = email.toLowerCase();
+            return !lower.endsWith('.png') && !lower.endsWith('.jpg') && !lower.endsWith('.gif') && !lower.endsWith('.svg') && !lower.endsWith('.webp') && !lower.includes('example.com') && !lower.includes('wix.com');
+        });
+        result.emails = uniqueEmails.slice(0, 3); // Max 3 emails
+
+    } catch (e) {
+        result.active = false;
+        result.errorMessage = e.message;
+    }
+
+    res.status(200).json(result);
+};
