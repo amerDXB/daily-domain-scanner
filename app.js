@@ -396,8 +396,9 @@ function renderResultsTable(filter = '') {
         // Prepare score badge
         let scoreBadge = `<span class="score-badge">--</span>`;
         if (crmInfo.score !== null) {
-            const scoreClass = crmInfo.score > 60 ? 'high' : (crmInfo.score > 30 ? 'medium' : 'low');
-            scoreBadge = `<span class="score-badge ${scoreClass}">${crmInfo.score}/100</span>`;
+            const rawScore = typeof crmInfo.score === 'object' ? crmInfo.score.total : crmInfo.score;
+            const scoreClass = rawScore > 60 ? 'high' : (rawScore > 30 ? 'medium' : 'low');
+            scoreBadge = `<span class="score-badge ${scoreClass}">${rawScore}/100</span>`;
         }
 
         const tr = document.createElement('tr');
@@ -493,6 +494,35 @@ function renderScoreAndInsights(info) {
     document.getElementById('drawer-next-action').textContent = 'Run domain audit scan to see recommendation.';
     document.getElementById('drawer-next-action').style.color = 'var(--text-muted)';
 
+    // Reset Email Setup badges
+    const healthBadge = document.getElementById('drawer-email-health-badge');
+    healthBadge.textContent = '--';
+    healthBadge.className = 'badge-status badge-status-new';
+    document.getElementById('badge-spf-status').textContent = '--';
+    document.getElementById('badge-spf-status').style.color = 'var(--text-muted)';
+    document.getElementById('badge-dkim-status').textContent = '--';
+    document.getElementById('badge-dkim-status').style.color = 'var(--text-muted)';
+    document.getElementById('badge-dmarc-status').textContent = '--';
+    document.getElementById('badge-dmarc-status').style.color = 'var(--text-muted)';
+
+    // Reset Score Breakdown block
+    let breakdownContainer = document.getElementById('drawer-score-breakdown');
+    if (!breakdownContainer) {
+        // Dynamically create score breakdown list under the score circle label
+        const parent = document.querySelector('.score-circle-wrapper');
+        breakdownContainer = document.createElement('div');
+        breakdownContainer.id = 'drawer-score-breakdown';
+        breakdownContainer.style.width = '100%';
+        breakdownContainer.style.marginTop = '0.75rem';
+        breakdownContainer.style.display = 'flex';
+        breakdownContainer.style.flexDirection = 'column';
+        breakdownContainer.style.gap = '0.25rem';
+        breakdownContainer.style.fontSize = '0.7rem';
+        breakdownContainer.style.color = 'var(--text-secondary)';
+        parent.appendChild(breakdownContainer);
+    }
+    breakdownContainer.innerHTML = '';
+
     if (info.score === null) {
         scoreVal.textContent = '--';
         drawerInsights.innerHTML = `
@@ -501,8 +531,23 @@ function renderScoreAndInsights(info) {
             </div>
         `;
     } else {
-        scoreVal.textContent = info.score;
+        const rawScore = typeof info.score === 'object' ? info.score.total : info.score;
+        scoreVal.textContent = rawScore;
         const audit = info.auditResult;
+
+        // Render transparent score breakdown list
+        if (typeof info.score === 'object' && info.score.breakdown) {
+            info.score.breakdown.forEach(item => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justify = 'space-between';
+                row.innerHTML = `
+                    <span>• ${escapeHTML(item.label)}</span>
+                    <span style="font-weight:700;color:var(--accent-teal);">+${item.value}</span>
+                `;
+                breakdownContainer.appendChild(row);
+            });
+        }
 
         // Populate DNS & MX Contact Discovery Details
         if (audit) {
@@ -518,35 +563,88 @@ function renderScoreAndInsights(info) {
                 mxStatusEl.textContent = 'Active (MX Found)';
                 mxStatusEl.style.color = '#10b981';
                 emailProviderEl.textContent = audit.emailProvider || 'Unknown';
+
+                // Display Email Auth Setup badges
+                document.getElementById('badge-spf-status').textContent = audit.spfPresent ? 'PRESENT' : 'MISSING';
+                document.getElementById('badge-spf-status').style.color = audit.spfPresent ? '#10b981' : '#ef4444';
                 
-                // Show candidate email recommendations
+                document.getElementById('badge-dkim-status').textContent = audit.dkimPresent ? 'PRESENT' : 'MISSING';
+                document.getElementById('badge-dkim-status').style.color = audit.dkimPresent ? '#10b981' : '#ef4444';
+                
+                document.getElementById('badge-dmarc-status').textContent = audit.dmarcPresent ? 'PRESENT' : 'MISSING';
+                document.getElementById('badge-dmarc-status').style.color = audit.dmarcPresent ? '#10b981' : '#ef4444';
+
+                // Determine Health Status
+                if (audit.spfPresent && audit.dkimPresent && audit.dmarcPresent) {
+                    healthBadge.textContent = '🟢 Business Email Ready';
+                    healthBadge.className = 'badge-status badge-status-interested';
+                } else if (audit.spfPresent || audit.dkimPresent || audit.dmarcPresent) {
+                    healthBadge.textContent = '🟡 Partial Setup';
+                    healthBadge.className = 'badge-status badge-status-followed_up';
+                } else {
+                    healthBadge.textContent = '🔴 Risky Setup';
+                    healthBadge.className = 'badge-status badge-status-closed';
+                }
+                
+                // Show candidate email recommendations with individual confidence weights, sorted descending
                 candidatesWrapper.classList.remove('hidden');
                 candidateEmailsEl.innerHTML = '';
-                const prefixes = ['info', 'hello', 'contact', 'sales', 'admin'];
-                prefixes.forEach(prefix => {
-                    const candidate = `${prefix}@${activeDrawerDomain}`;
+                
+                const candidates = [
+                    { email: `info@${activeDrawerDomain}`, confidence: 78 },
+                    { email: `contact@${activeDrawerDomain}`, confidence: 72 },
+                    { email: `hello@${activeDrawerDomain}`, confidence: 55 },
+                    { email: `admin@${activeDrawerDomain}`, confidence: 18 },
+                    { email: `sales@${activeDrawerDomain}`, confidence: 42 }
+                ];
+                
+                // Sort descending
+                candidates.sort((a, b) => b.confidence - a.confidence);
+
+                candidates.forEach(cand => {
                     const row = document.createElement('div');
+                    row.className = 'candidate-row-item';
                     row.style.display = 'flex';
                     row.style.justify = 'space-between';
                     row.style.alignItems = 'center';
                     row.style.background = 'rgba(255, 255, 255, 0.02)';
-                    row.style.padding = '0.25rem 0.5rem';
+                    row.style.padding = '0.35rem 0.5rem';
                     row.style.borderRadius = '0.35rem';
                     row.style.fontSize = '0.75rem';
                     row.innerHTML = `
-                        <span style="font-family: monospace; color:#cbd5e1;">${candidate}</span>
+                        <div style="display:flex; flex-direction:column; gap:0.1rem;">
+                            <span style="font-family: monospace; color:#cbd5e1;">${cand.email}</span>
+                            <span style="font-size:0.6rem; color:var(--text-muted);">Confidence: ${cand.confidence}%</span>
+                        </div>
                         <div style="display:flex; gap:0.25rem;">
-                            <button type="button" class="btn btn-secondary" style="padding: 0.15rem 0.35rem; font-size: 0.65rem;" onclick="copyToClipboard('${candidate}', this)">Copy</button>
-                            <button type="button" class="btn btn-secondary" style="padding: 0.15rem 0.35rem; font-size: 0.65rem;" onclick="verifyCandidateEmail('${candidate}', this)">Verify</button>
+                            <button type="button" class="btn btn-secondary" style="padding: 0.15rem 0.35rem; font-size: 0.65rem;" onclick="copyToClipboard('${cand.email}', this)">Copy</button>
+                            <button type="button" class="btn btn-secondary btn-verify-single" data-email="${cand.email}" style="padding: 0.15rem 0.35rem; font-size: 0.65rem;" onclick="verifyCandidateEmail('${cand.email}', this)">Verify</button>
                         </div>
                     `;
                     candidateEmailsEl.appendChild(row);
                 });
+
+                // Attach Verify All listener
+                const verifyAllBtn = document.getElementById('btn-verify-all-candidates');
+                verifyAllBtn.onclick = async () => {
+                    verifyAllBtn.disabled = true;
+                    verifyAllBtn.textContent = 'Verifying...';
+                    const buttons = candidateEmailsEl.querySelectorAll('.btn-verify-single');
+                    for (const btn of buttons) {
+                        if (!btn.disabled) {
+                            const email = btn.getAttribute('data-email');
+                            await verifyCandidateEmail(email, btn);
+                        }
+                    }
+                    verifyAllBtn.textContent = 'Verified All';
+                };
             } else {
                 mxStatusEl.textContent = 'None Found';
                 mxStatusEl.style.color = '#ef4444';
                 emailProviderEl.textContent = 'No Mail Setup';
                 emailProviderEl.style.color = 'var(--text-muted)';
+                healthBadge.textContent = '🔴 No Mail Server';
+                healthBadge.className = 'badge-status badge-status-closed';
             }
 
             // Calculate Contact Confidence Score
@@ -572,18 +670,29 @@ function renderScoreAndInsights(info) {
                 confidenceEl.style.borderColor = 'rgba(239, 68, 68, 0.25)';
             }
 
-            // Pipeline next action advice
-            if (!audit.active && !audit.mxFound) {
-                nextActionEl.textContent = '🔴 No Website & No Mail setup. Recommended action: Place in monitoring queue.';
-                nextActionEl.style.color = '#ef4444';
-            } else if (!audit.active && audit.mxFound) {
-                nextActionEl.textContent = '🟡 No active Website, but MX mail setup detected! Recommended action: Try cold emailing unverified candidates.';
+            // Pipeline next action advice (Refined Rules Engine)
+            const hasVerifiedEmail = (info.email && !info.email.includes('@sentry-next') && info.email.length > 0);
+            
+            if (!audit.active && audit.mxFound && hasVerifiedEmail) {
+                nextActionEl.textContent = '🟢 No website + active MX + verified email. Recommended action: Direct cold email outreach.';
+                nextActionEl.style.color = '#10b981';
+            } else if (!audit.active && audit.mxFound && !hasVerifiedEmail) {
+                nextActionEl.textContent = '🟡 No website + active MX, but no verified contact. Recommended action: Verify candidates first or monitor for website launch.';
                 nextActionEl.style.color = '#f59e0b';
+            } else if (audit.preLaunch && audit.mxFound) {
+                nextActionEl.textContent = '🔥 Coming soon / Placeholder + active MX. Recommended action: High Priority! Pitch pre-launch landing page & email capture.';
+                nextActionEl.style.color = '#fbbf24';
+            } else if (audit.active && !audit.hasCta) {
+                nextActionEl.textContent = '🟢 Active website with weak / missing CTA. Recommended action: Pitch a conversion optimization audit.';
+                nextActionEl.style.color = '#10b981';
+            } else if (!audit.mxFound && !audit.active) {
+                nextActionEl.textContent = '🔴 No MX setup + No active website. Recommended action: Monitor domain for updates (30-day queue).';
+                nextActionEl.style.color = '#ef4444';
             } else if (audit.active && audit.contactPage) {
                 nextActionEl.textContent = '🟢 Website is active with a Contact Form page. Recommended action: Submit pitch via contact form.';
                 nextActionEl.style.color = '#10b981';
-            } else if (audit.active && hasSocials && !info.email) {
-                nextActionEl.textContent = '🔵 Active site with social links only. Recommended action: Send outreach pitch via Instagram/Facebook DM.';
+            } else if (audit.active && hasSocials) {
+                nextActionEl.textContent = '🔵 Active site with social links only. Recommended action: Send outreach pitch via Social DM.';
                 nextActionEl.style.color = 'var(--accent-teal)';
             } else {
                 nextActionEl.textContent = '🟢 Active site found. Recommended action: Review contact page or audit details.';
@@ -593,9 +702,9 @@ function renderScoreAndInsights(info) {
 
         
         // Add color mapping
-        if (info.score > 60) {
+        if (rawScore > 60) {
             scoreOuter.classList.add('high');
-        } else if (info.score > 30) {
+        } else if (rawScore > 30) {
             scoreOuter.classList.add('medium');
         } else {
             scoreOuter.classList.add('good');
@@ -680,48 +789,72 @@ function renderScoreAndInsights(info) {
 // Opportunity Scoring & Insight Rules Engine
 function calculateOpportunityScore(audit) {
     let score = 0;
+    const breakdown = [];
     
     if (!audit.active) {
         // Domain is registered but website does not respond or exist
-        return 80; // High opportunity score for inactive domain
+        return {
+            total: 80,
+            breakdown: [
+                { value: 10, label: 'Default base for new domains' },
+                { value: 70, label: 'Website does not exist / inactive' }
+            ]
+        };
     }
+
+    // Default base score for new domains
+    score += 10;
+    breakdown.push({ value: 10, label: 'Default base for new domains' });
 
     // Pre-launch/placeholder detection (High-signal opportunity)
     if (audit.preLaunch) {
         score += 25;
+        breakdown.push({ value: 25, label: 'Pre-launch/placeholder detected' });
     }
 
     // SSL Missing check
-    if (!audit.https) score += 15;
+    if (!audit.https) {
+        score += 15;
+        breakdown.push({ value: 15, label: 'SSL certificate missing' });
+    }
     
     // Conditional Builder scoring: Only add score (+10) if the CMS site has performance or conversion issues
     if (['Wix', 'Squarespace', 'Weebly'].includes(audit.cms)) {
         if ((audit.responseTime && audit.responseTime > 1500) || !audit.hasCta) {
             score += 10;
+            breakdown.push({ value: 10, label: `CMS (${audit.cms}) has issues` });
         }
     }
     
     // Speed checks
     if (audit.responseTime && audit.responseTime > 1500) {
         score += 15;
+        breakdown.push({ value: 15, label: 'Slow loading speed (>1.5s)' });
     }
     
     // Missing social channels
     const hasSocials = Object.values(audit.socials).some(link => link !== null && link !== '');
-    if (!hasSocials) score += 5;
+    if (!hasSocials) {
+        score += 5;
+        breakdown.push({ value: 5, label: 'No social profiles connected' });
+    }
     
     // Call-To-Action (CTA) check
-    if (!audit.hasCta) score += 15;
+    if (!audit.hasCta) {
+        score += 15;
+        breakdown.push({ value: 15, label: 'No clear Call-To-Action (CTA)' });
+    }
 
     // Contact info presence
     if (audit.emails.length === 0 && !audit.contactPage) {
         score += 15;
+        breakdown.push({ value: 15, label: 'No contact path (email/page)' });
     }
-    
-    // Default base score for new domains
-    score += 10;
 
-    return Math.min(Math.max(score, 0), 100);
+    return {
+        total: Math.min(Math.max(score, 0), 100),
+        breakdown: breakdown
+    };
 }
 
 // Generate Insights list from Audit Results
@@ -936,7 +1069,8 @@ function exportCSV() {
         // Sanitize values for CSV (escaping quotes, wrapping in quotes if containing commas)
         const whyMatchedClean = crmInfo.whyMatched ? crmInfo.whyMatched.replace(/"/g, '""') : `Keyword: ${lead.match}`;
         const notesClean = crmInfo.notes ? crmInfo.notes.replace(/"/g, '""').replace(/\r?\n/g, ' ') : '';
-        const scoreClean = crmInfo.score !== null ? `${crmInfo.score}/100` : 'Unaudited';
+        const scoreVal = typeof crmInfo.score === 'object' && crmInfo.score !== null ? crmInfo.score.total : crmInfo.score;
+        const scoreClean = scoreVal !== null && scoreVal !== '' ? `${scoreVal}/100` : 'Unaudited';
         const countryClean = crmInfo.country || 'Unaudited';
         
         csvContent += `"${lead.domain}","${whyMatchedClean}","${scoreClean}","${countryClean}","${crmInfo.status}","${crmInfo.email}","${crmInfo.contactPage}","${notesClean}"\r\n`;
@@ -957,7 +1091,8 @@ function exportTXT() {
     let txtContent = "# Daily Domain Leads Export\r\n\r\n";
     foundLeads.forEach(lead => {
         const crmInfo = crmDatabase[lead.domain] || { status: 'New', score: '', email: '', contactPage: '', country: '' };
-        const scoreClean = crmInfo.score !== null ? `${crmInfo.score}/100` : 'Unaudited';
+        const scoreVal = typeof crmInfo.score === 'object' && crmInfo.score !== null ? crmInfo.score.total : crmInfo.score;
+        const scoreClean = scoreVal !== null && scoreVal !== '' ? `${scoreVal}/100` : 'Unaudited';
         
         txtContent += `Domain: ${lead.domain}\r\n`;
         txtContent += `Score: ${scoreClean}\r\n`;

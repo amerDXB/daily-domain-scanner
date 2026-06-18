@@ -253,8 +253,32 @@
                             </div>
                         </div>
 
+                        <!-- Email Authentication Setup Badge -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.75rem;">
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Email Setup Health</span>
+                            <span id="drawer-email-health-badge" class="badge-status badge-status-new" style="font-size: 0.7rem;">--</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; background: rgba(0, 0, 0, 0.2); padding: 0.5rem; border-radius: 0.5rem;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.6rem; color: var(--text-muted);">SPF</div>
+                                <span id="badge-spf-status" style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted);">--</span>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.6rem; color: var(--text-muted);">DKIM</div>
+                                <span id="badge-dkim-status" style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted);">--</span>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 0.6rem; color: var(--text-muted);">DMARC</div>
+                                <span id="badge-dmarc-status" style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted);">--</span>
+                            </div>
+                        </div>
+
                         <div id="drawer-candidates-wrapper" class="hidden" style="border-top: 1px solid rgba(255, 255, 255, 0.04); padding-top: 0.75rem;">
-                            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;">Likely Candidates (Unverified)</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Likely Candidates (Unverified)</div>
+                                <button type="button" id="btn-verify-all-candidates" class="btn btn-primary" style="padding: 0.2rem 0.5rem; font-size: 0.65rem; margin-top: 0;">Verify All</button>
+                            </div>
                             <div id="drawer-candidate-emails" style="display: flex; flex-direction: column; gap: 0.35rem;">
                                 <!-- Likely candidate emails go here -->
                             </div>

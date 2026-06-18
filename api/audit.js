@@ -109,6 +109,9 @@ module.exports = async (req, res) => {
         preLaunch: false,
         mxFound: false,
         emailProvider: 'Unknown',
+        spfPresent: false,
+        dkimPresent: false,
+        dmarcPresent: false,
         errorMessage: null
     };
 
@@ -143,6 +146,55 @@ module.exports = async (req, res) => {
             // MX lookup failed, means no MX records found or DNS error
             result.mxFound = false;
             result.emailProvider = 'None';
+        }
+
+        // 0.5 Check SPF, DKIM, DMARC TXT records
+        if (result.mxFound) {
+            try {
+                // Check SPF: Look for txt records starting with "v=spf1"
+                const txtRecords = await dns.resolveTxt(targetDomain);
+                if (txtRecords && txtRecords.length > 0) {
+                    result.spfPresent = txtRecords.some(record => {
+                        const fullStr = record.join('').toLowerCase();
+                        return fullStr.includes('v=spf1');
+                    });
+                }
+            } catch (spfErr) {
+                result.spfPresent = false;
+            }
+
+            try {
+                // Check DMARC: Look at _dmarc subdomain txt records
+                const dmarcRecords = await dns.resolveTxt(`_dmarc.${targetDomain}`);
+                if (dmarcRecords && dmarcRecords.length > 0) {
+                    result.dmarcPresent = dmarcRecords.some(record => {
+                        const fullStr = record.join('').toLowerCase();
+                        return fullStr.includes('v=dmarc1');
+                    });
+                }
+            } catch (dmarcErr) {
+                result.dmarcPresent = false;
+            }
+
+            // Check DKIM: Try standard selectors (google, default, k1, mail)
+            const selectors = ['google', 'default', 'k1', 'mail'];
+            for (const selector of selectors) {
+                try {
+                    const dkimRecords = await dns.resolveTxt(`${selector}._domainkey.${targetDomain}`);
+                    if (dkimRecords && dkimRecords.length > 0) {
+                        const hasDkim = dkimRecords.some(record => {
+                            const fullStr = record.join('').toLowerCase();
+                            return fullStr.includes('v=dkim1') || fullStr.includes('p=');
+                        });
+                        if (hasDkim) {
+                            result.dkimPresent = true;
+                            break;
+                        }
+                    }
+                } catch (dkimErr) {
+                    // Suppress and try next selector
+                }
+            }
         }
 
         let responseData = null;
